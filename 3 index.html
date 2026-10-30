@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Realidad Aumentada - Video sobre imagen</title>
+  
+  <!-- A-Frame 1.5.0 + MindAR 1.2.5 -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #inicio {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 15, 0.92);
+      color: #fff;
+      text-align: center;
+      padding: 24px;
+    }
+    #inicio h2 {
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+    #inicio p {
+      font-size: 15px;
+      color: #cbd5e1;
+      max-width: 320px;
+      line-height: 1.5;
+    }
+    #btnIniciar {
+      margin-top: 24px;
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 50px;
+      background: #2563eb;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      cursor: pointer;
+    }
+    #btnIniciar:active {
+      transform: scale(0.98);
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="inicio">
+    <h2>Experiencia de Realidad Aumentada</h2>
+    <p>Toca el botón, permite el uso de la cámara y apunta hacia la imagen objetivo.</p>
+    <button id="btnIniciar">Iniciar Cámara</button>
+  </div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes; uiLoading: yes; filterMinCF: 0.0001; filterBeta: 0.001;"
+    color-space="sRGB"
+    renderer="colorManagement: true; antialias: true;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets timeout="10000">
+      <!-- 
+        muted + playsinline + crossOrigin son obligatorios para que 
+        Safari (iOS) y Chrome (Android) permitan la reproducción automática en AR
+      -->
+      <video
+        id="videoAR"
+        src="./video1.mp4"
+        preload="auto"
+        loop
+        crossorigin="anonymous"
+        playsinline
+        webkit-playsinline
+        muted>
+      </video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- targetIndex corregido a la sintaxis estándar de MindAR -->
+    <a-entity id="objetivo" mindar-image-target="targetIndex: 0">
+      <!--
+        Ajustado a relación estándar 16:9 apaisado (width 1, height 0.5625).
+        Si tu video es vertical, cambia width="1" height="1.7778".
+      -->
+      <a-video
+        src="#videoAR"
+        position="0 0 0"
+        rotation="0 0 0"
+        width="1"
+        height="0.5625">
+      </a-video>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const video = document.querySelector('#videoAR');
+    const objetivo = document.querySelector('#objetivo');
+    const sceneEl = document.querySelector('a-scene');
+    const pantallaInicio = document.querySelector('#inicio');
+    const btnIniciar = document.querySelector('#btnIniciar');
+
+    btnIniciar.addEventListener('click', async () => {
+      // Ocultar pantalla de presentación
+      pantallaInicio.style.display = 'none';
+
+      // 1. "Descongelar" el elemento de video en el gesto de usuario (iOS/Android)
+      try {
+        await video.play();
+        video.pause();
+        // Si quieres que tenga audio una vez detectado, quitamos el silencio tras la interacción:
+        video.muted = false;
+      } catch (err) {
+        console.warn('El navegador requirió mantener el video en silencio:', err);
+      }
+
+      // 2. Iniciar el sistema MindAR
+      const sistemaAR = sceneEl.systems['mindar-image-system'];
+      sistemaAR.start();
+    });
+
+    // Control de reproducción según la visibilidad del target
+    objetivo.addEventListener('targetFound', () => {
+      video.play().catch(e => {
+        // En caso de bloqueo por política de audio, reproduce en silencio
+        video.muted = true;
+        video.play();
+      });
+    });
+
+    objetivo.addEventListener('targetLost', () => {
+      video.pause();
+    });
+  </script>
+</body>
+</html>
